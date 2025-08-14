@@ -9,7 +9,9 @@
 #define CHAR_ON_LINE 18
 #define ROM_INFO_SIZE 22
 
-unsigned char mem[0x500];
+#define GAMECOUNT *((unsigned char*)0x9100)
+#define GAMEINFO ((unsigned char*)0x9101)
+#define GAMEINFO_SIZE 56
 
 struct sv_vram
 {
@@ -98,65 +100,54 @@ void sleep(int count)
 
 void reset()
 {
-    sleep(1);
-    __asm__("jsr zerobss");
-    __asm__("jsr copydata");
-    __asm__("lda #<(__RAM_START__ + __RAM_SIZE__ + __STACKSIZE__)");
-    __asm__("ldx #>(__RAM_START__ + __RAM_SIZE__ + __STACKSIZE__)");
-    __asm__("sta sp");
-    __asm__("stx sp+1");
-    __asm__("jsr initlib");
-    __asm__("jsr _main");
+__asm__("SEI");
+__asm__("LDA #$00");
+__asm__("STA $2010");
+__asm__("STA $2014");
+__asm__("STA $201B");
+__asm__("STA $202A");
+__asm__("STA $200D");
+__asm__("LDA #$01");
+__asm__("STA $2026");
+__asm__("LDA #$00");
+__asm__("STA $2026");
+__asm__("JMP ($FFFA)");
 }
 
 void main(void)
 {
-    char i, cursor = 1;
+    char i;
+    unsigned char cursor = 1;
 
     init();
     clear_screen();
 
-    memset(mem, 'X', sizeof(mem));
-
-    for (i = 1; i < 19; i++)
-    {
-        print(mem + (ROM_INFO_SIZE * i), CHAR_ON_LINE, 1, i, i == cursor);
+    for (i = 1; i < GAMECOUNT+1; i++) {
+        print((char*)&GAMEINFO[4 + GAMEINFO_SIZE * i], CHAR_ON_LINE, 1, i, i == cursor);
     }
 
-    while (1)
-    {
-        if (~SV_CONTROL & JOY_DOWN_MASK && cursor < 18)
-        {
-            
-            print(mem + (ROM_INFO_SIZE * cursor), CHAR_ON_LINE, 1, cursor + 1, 1);
-            if (cursor > 0)
-            {
-                print(mem + (ROM_INFO_SIZE * (cursor - 1)), CHAR_ON_LINE, 1, cursor, 0);
-            }
+    while (1) {
+        if ((~SV_CONTROL & JOY_DOWN_MASK) && (cursor < GAMECOUNT)) {           
+            print((char*)&GAMEINFO[4 + GAMEINFO_SIZE * cursor], CHAR_ON_LINE, 1, cursor, 0);
             cursor++;
+            print((char*)&GAMEINFO[4 + GAMEINFO_SIZE * (cursor)], CHAR_ON_LINE, 1, cursor, 1);
             beep();
             while(~SV_CONTROL & JOY_DOWN_MASK){};
         }
-        if (~SV_CONTROL & JOY_UP_MASK && cursor > 0)
+        if ((~SV_CONTROL & JOY_UP_MASK) && (cursor > 1))
         {
-            print(mem + (ROM_INFO_SIZE * (cursor-1)), CHAR_ON_LINE, 1, cursor, 1);
-            if (cursor < 18)
-            {
-                print(mem + (ROM_INFO_SIZE * (cursor)), CHAR_ON_LINE, 1, cursor + 1, 0);
-            }
-            
+            print((char*)&GAMEINFO[4 + GAMEINFO_SIZE * (cursor)], CHAR_ON_LINE, 1, cursor, 0);
             cursor--;
+            print((char*)&GAMEINFO[4 + GAMEINFO_SIZE * (cursor)], CHAR_ON_LINE, 1, cursor, 1);
             beep();
             while(~SV_CONTROL & JOY_UP_MASK){};
         }
 
         if (~SV_CONTROL & JOY_START_MASK)
         {
-            SV_DMA.control = 1;
-
+            SV_LCD.ypos = *(unsigned char*)(0x9000 + cursor);
+            while(~SV_CONTROL & JOY_START_MASK){};
             reset();
         }
-
-        sleep(100);
     }
 }

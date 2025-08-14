@@ -52,7 +52,7 @@ else
 endif
 
 menu: menu.c
-	$(CL) -t $(SYS) -O -o menu.sv -m menu.map menu.c
+	$(CL) -t $(SYS) -O -o menu.sv menu.c
 	
 clean:
 	@$(DEL) $(EXELIST_supervision) 2>$(NULLDEV)
